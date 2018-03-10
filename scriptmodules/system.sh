@@ -72,7 +72,7 @@ function get_os_version() {
     __os_desc="${os[1]}"
     __os_release="${os[2]}"
     __os_codename="${os[3]}"
-    
+
     local error=""
     case "$__os_id" in
         Raspbian|Debian)
@@ -151,7 +151,7 @@ function get_os_version() {
             error="Unsupported OS"
             ;;
     esac
-    
+
     [[ -n "$error" ]] && fatalError "$error\n\n$(lsb_release -idrc)"
 
     # add 32bit/64bit to platform flags
@@ -237,11 +237,20 @@ function get_platform() {
                 __platform="tinker"
                 ;;
             *)
-                case $architecture in
+#                case $architecture in
+#                    i686|x86_64|amd64)
+#                        __platform="x86"
+#                        ;;
+#                esac
+                if grep -q "Rock64" /sys/firmware/devicetree/base/model 2>/dev/null; then
+                  __platform="rock64"
+                else
+                  case $architecture in
                     i686|x86_64|amd64)
-                        __platform="x86"
-                        ;;
-                esac
+                    __platform="x86"
+                    ;;
+                  esac
+                fi
                 ;;
         esac
     fi
@@ -310,6 +319,21 @@ function platform_odroid-xu() {
     __default_asflags=""
     __default_makeflags="-j2"
     __platform_flags="arm armv7 neon mali gles"
+}
+
+function platform_rock64() {
+  if [[ "$(getconf LONG_BIT)" -eq 32 ]]; then
+    __default_cflags="-O2 -march=armv8-a+crc -mtune=cortex-a53 -mfpu=neon-fp-armv8"
+    __platform_flags="arm armv8 neon kms gles"
+  else
+    __default_cflags="-O2 -march=native"
+    __platform_flags="aarch64 kms gles"
+  fi
+  __default_cflags+=" -ftree-vectorize -funsafe-math-optimizations"
+  # required for mali headers to define GL functions
+  __default_cflags+=" -DGL_GLEXT_PROTOTYPES"
+  __default_asflags=""
+  __default_makeflags="-j2"
 }
 
 function platform_tinker() {
